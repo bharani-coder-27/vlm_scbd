@@ -5,10 +5,10 @@ the crop goes to the selected MLX model → the roster cache turns shirt numbers
 names → the frame and its final JSON appear side by side, streaming in as it runs.
 
 ```
-video ─▶ sample @1fps ─▶ YOLO ─┬─ main_scoreboard ─┐
-                               ├─ lineup           ├─▶ MLX VLM ─▶ roster cache ─▶ JSON
-                               ├─ substitution     │
-                               └─ card_event       ┘
+video ─▶ sample @1fps ─▶ YOLO ─┬─ main_scoreboard ─▶ OCR ──────┐
+                               ├─ lineup           ─┐           ├─▶ roster cache ─▶ JSON
+                               ├─ substitution     ─┼─▶ MLX VLM ─┘
+                               └─ card_event       ─┘
 ```
 
 Everything runs locally. No API keys, no network.
@@ -42,7 +42,7 @@ If it says `x86_64` you are in Rosetta — reinstall Python as native arm64.
 
 ## 3. Models
 
-Both are already installed on your machine. To pre-pull explicitly:
+Both VLMs are already installed on your machine. To pre-pull explicitly:
 
 ```bash
 hf download mlx-community/Qwen3-VL-4B-Instruct-4bit
@@ -51,6 +51,55 @@ hf download numind/NuExtract3-mlx-4bits
 
 Only one is resident at a time — switching in the UI unloads the previous model
 first, so a 16 GB Mac never holds both.
+
+### Scoreboard OCR
+
+The score bug goes to OCR rather than the VLM — measured on the same crops, OCR is
+~774 ms vs ~1466 ms and more reliable on the clock. `scoreboard_ocr.py` takes the
+first engine that imports, in order **apple → rapid → paddle**, and falls back to
+the VLM if none are present.
+
+**Apple Vision (default, recommended).** Built into macOS, nothing to download,
+~50–120 ms. Already installed by `requirements.txt`:
+
+```bash
+pip install pyobjc-framework-Vision
+```
+
+**PaddleOCR (optional — for parity with the Windows pipeline).**
+Paddle's macOS arm64 wheels are **not on PyPI**; you must use their index:
+
+```bash
+# check you are on native arm64 Python, NOT Rosetta - must print: arm64
+python -c "import platform; print(platform.machine())"
+
+python -m pip install paddlepaddle==3.3.1 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
+python -m pip install paddleocr==3.7.0
+
+# verify
+python -c "import paddle; paddle.utils.run_check()"
+
+# pre-download the OCR models (~134 MB) so the first scoreboard does not stall
+python -c "from paddleocr import TextDetection, TextRecognition; TextDetection(device='cpu'); TextRecognition(device='cpu'); print('models cached')"
+```
+
+Models land in `~/.paddlex/official_models/` (`PP-OCRv6_medium_det` 60 MB,
+`PP-OCRv6_medium_rec` 74 MB). They are platform-independent, so you can copy them
+from the Windows box instead of downloading:
+
+```bash
+scp -r <windows>:C:/Users/<you>/.paddlex/official_models/ ~/.paddlex/
+```
+
+macOS Paddle is **CPU-only** — there is no Metal backend. That is fine here; the
+Windows pipeline already ran it on CPU to keep the GPU free for the VLM.
+
+To force a specific engine instead of auto-selection:
+
+```python
+from scoreboard_ocr import ScoreboardOCR
+ocr = ScoreboardOCR(engine="paddle")      # or "apple" / "rapid"
+```
 
 ## 4. Run
 
@@ -142,6 +191,7 @@ shirt numbers come through and names are left `null`.
 | `detector.py` | YOLO wrapper (MPS, falls back to CPU) |
 | `prompts.py` | hybrid prompt set — v4 banners, v3 line-up |
 | `resolve.py` | roster cache + period-from-clock |
+| `scoreboard_ocr.py` | score-bug OCR: semantic parser + pluggable engine |
 | `static/index.html` | the whole frontend, no build step |
 
 ## Tuning
@@ -153,6 +203,8 @@ shirt numbers come through and names are left `null`.
 | `max_recheck` | `EventTrigger` | backoff ceiling — keep ≤20 s or team changes are read late |
 | `CROP_PAD` | `pipeline.py` | per-label crop padding |
 | `IMGSZ` | `detector.py` | **leave at 640** — these weights collapse above it |
+| OCR engine | `ScoreboardOCR(engine=...)` | `apple` / `rapid` / `paddle`, or auto |
+| `sb_backend=vlm` | query param | force the scoreboard through the VLM instead |
 
 ## Troubleshooting
 
@@ -163,3 +215,5 @@ shirt numbers come through and names are left `null`.
 | First extraction very slow | model weights paging in; the second call is representative |
 | `generate() TypeError` | mlx-vlm API drift — the code already tries `temperature=` then `temp=` |
 | Everything `ambiguous` | no roster selected, or the wrong match picked |
+| `scoreboard: vlm` in the sidebar | no OCR engine imported — install `pyobjc-framework-Vision` |
+| Paddle install pulls an x86 wheel | you are in Rosetta, or you omitted the `-i` index URL |

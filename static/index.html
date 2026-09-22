@@ -136,9 +136,12 @@ async function boot(){
     `<option value="${m.key}">${esc(m.label)}</option>`).join('');
   $('#roster').innerHTML = '<option value="">— none —</option>' +
     c.rosters.map(r => `<option value="${r}">${esc(r)}</option>`).join('');
-  $('#devline').textContent = `YOLO → crop → VLM → roster cache · device: ${c.device}`;
+  const sbEng = c.scoreboard && c.scoreboard.engine ? c.scoreboard.engine : 'vlm';
+  $('#devline').textContent = `YOLO → crop → VLM → roster cache · device: ${c.device}`
+    + ` · scoreboard: ${sbEng}`;
   $('#yoloinfo').innerHTML = c.yolo.ok
     ? `YOLO <b>${esc(c.yolo.weights)}</b> on ${esc(c.yolo.device)}<br>classes: ${c.yolo.classes.join(', ')}`
+      + `<br>scoreboard via <b>${esc(sbEng)}</b>${sbEng==='vlm'?' (no OCR engine installed)':''}`
     : `<span style="color:var(--bad)">YOLO not loaded: ${esc(c.yolo.error)}</span>`;
 }
 boot();
@@ -239,6 +242,7 @@ function addResult(ev){
     + `<span class="dim">conf ${(ev.confidence ?? 0).toFixed(2)}</span>`
     + `<span class="dim">${Math.round(ev.latency_ms || 0)} ms</span>`
     + (ev.tokens ? `<span class="dim">${ev.tokens} tok</span>` : '')
+    + (ev.engine ? `<span class="dim">${esc(ev.engine)}</span>` : '')
     + (ev.trigger ? `<span class="dim">${ev.trigger}</span>` : '')
     + (bad ? `<span style="color:var(--bad)">${ev.status}</span>` : '');
   const d = shell(ev, bad ? ' bad' : '', head);

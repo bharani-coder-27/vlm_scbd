@@ -7,3 +7,8 @@ uvicorn>=0.30
 python-multipart>=0.0.9
 pillow>=10
 numpy>=1.26
+
+# scoreboard OCR - optional but recommended (~2x faster than the VLM on the score bug).
+# The first one that imports wins; Apple Vision is built into macOS.
+pyobjc-framework-Vision ; sys_platform == "darwin"
+rapidocr-onnxruntime

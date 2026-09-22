@@ -55,7 +55,13 @@ def config():
                 "classes": list(d.names.values()), "ok": True}
     except Exception as e:                               # noqa: BLE001
         yolo = {"ok": False, "error": str(e)}
-    return {"models": BACKEND.available(),
+    try:
+        from pipeline import scoreboard_ocr
+        eng = scoreboard_ocr()
+        sb = {"engine": eng.name if eng else "vlm", "ok": eng is not None}
+    except Exception as e:                               # noqa: BLE001
+        sb = {"engine": "vlm", "ok": False, "error": str(e)}
+    return {"models": BACKEND.available(), "scoreboard": sb,
             "active_model": BACKEND.key,
             "rosters": sorted(p.stem for p in ROSTERS.glob("*.json")),
             "labels": LABELS,
@@ -82,7 +88,8 @@ async def upload(file: UploadFile = File(...)):
 @app.get("/api/process")
 def process(path: str, model: str = "qwen3vl-4b", roster: str | None = None,
             fps: float = 1.0, conf: float | None = None,
-            labels: str | None = None, merge: bool = True):
+            labels: str | None = None, merge: bool = True,
+            sb_backend: str = "auto"):
     """SSE stream of pipeline events."""
     src = Path(path)
     if not src.exists():
@@ -99,7 +106,8 @@ def process(path: str, model: str = "qwen3vl-4b", roster: str | None = None,
         try:
             for ev in process_video(str(src), detector(), model,
                                     roster_path=roster_path, fps=fps, conf=conf,
-                                    labels=want, merge=merge):
+                                    labels=want, merge=merge,
+                                    sb_backend=sb_backend):
                 yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
         except Exception as e:                           # noqa: BLE001
             import traceback

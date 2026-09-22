@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Broadcast Graphics Extraction</title>
+<style>
+:root{
+  --bg:#0f1115; --panel:#171a21; --panel2:#1d212a; --line:#2a2f3a;
+  --fg:#e6eaf0; --dim:#8b95a6; --accent:#5aa9ff; --ok:#57d98a; --bad:#ff7b72;
+  --lineup:#a78bfa; --card:#e3b341; --sub:#4cc38a; --score:#5aa9ff;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+     font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+header{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;
+       align-items:baseline;gap:14px;flex-wrap:wrap}
+h1{font-size:17px;margin:0;font-weight:650;letter-spacing:-.01em}
+.sub{color:var(--dim);font-size:12.5px}
+.wrap{display:grid;grid-template-columns:300px 1fr;gap:0;
+      height:calc(100vh - 54px)}
+aside{border-right:1px solid var(--line);padding:18px;overflow:auto;background:var(--panel)}
+main{overflow:auto;padding:18px 22px}
+label.f{display:block;margin:0 0 4px;font-size:11.5px;text-transform:uppercase;
+        letter-spacing:.06em;color:var(--dim)}
+select,input[type=number]{width:100%;padding:8px 10px;margin-bottom:14px;
+  background:var(--panel2);color:var(--fg);border:1px solid var(--line);
+  border-radius:7px;font:inherit;font-size:13px}
+button{width:100%;padding:11px;border:0;border-radius:8px;background:var(--accent);
+  color:#04101f;font:inherit;font-weight:650;cursor:pointer;font-size:13.5px}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.ghost{background:var(--panel2);color:var(--fg);border:1px solid var(--line);
+  font-weight:500;margin-top:8px}
+#drop{border:1.5px dashed var(--line);border-radius:9px;padding:20px 12px;
+  text-align:center;color:var(--dim);cursor:pointer;margin-bottom:14px;font-size:13px}
+#drop.on{border-color:var(--accent);color:var(--accent);background:#5aa9ff10}
+#drop b{color:var(--fg);display:block;margin-bottom:3px;font-size:13.5px}
+.bar{height:5px;background:var(--panel2);border-radius:3px;overflow:hidden;margin:10px 0 6px}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .25s}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:8px 10px}
+.stat b{display:block;font-size:17px;font-weight:650}
+.stat span{font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  margin-bottom:14px;overflow:hidden}
+.card.bad{border-color:#6e3131}
+.card.merged{border-color:#3c5a7a;background:#141b24}
+.hd{display:flex;gap:12px;align-items:center;padding:9px 14px;
+  border-bottom:1px solid var(--line);flex-wrap:wrap;font-size:12.5px}
+.tag{padding:2px 9px;border-radius:20px;font-size:11px;font-weight:650;color:#0c0f14}
+.tag.lineup{background:var(--lineup)}.tag.card_event{background:var(--card)}
+.tag.substitution{background:var(--sub)}.tag.main_scoreboard{background:var(--score)}
+.t{color:var(--accent);font-weight:650;font-variant-numeric:tabular-nums}
+.dim{color:var(--dim)}
+.body{display:grid;grid-template-columns:minmax(220px,42%) 1fr;gap:0}
+.imgwrap{padding:14px;border-right:1px solid var(--line);background:#0b0d11;
+  display:flex;align-items:center;justify-content:center}
+.imgwrap img{max-width:100%;border-radius:6px;display:block}
+.jsonwrap{padding:12px 14px;min-width:0}
+.jl{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);
+  margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;max-height:340px;overflow:auto;
+  background:#0b0d11;border:1px solid var(--line);border-radius:6px;padding:10px}
+.toggle{background:none;border:0;color:var(--accent);cursor:pointer;font-size:11px;
+  padding:0;width:auto;font-weight:500}
+.empty{color:var(--dim);text-align:center;padding:70px 20px}
+.empty h2{font-weight:600;font-size:15px;color:var(--fg);margin:0 0 6px}
+.err{color:var(--bad);font-size:12.5px;margin-top:8px}
+.note{font-size:11.5px;color:var(--dim);margin:-6px 0 14px;line-height:1.45}
+hr{border:0;border-top:1px solid var(--line);margin:16px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>Broadcast Graphics Extraction</h1>
+  <span class="sub" id="devline">YOLO → crop → VLM → roster cache</span>
+</header>
+
+<div class="wrap">
+<aside>
+  <div id="drop">
+    <b>Drop a video</b>
+    <span>or click to choose</span>
+    <input type="file" id="file" accept="video/*" hidden>
+  </div>
+
+  <label class="f" for="model">Model</label>
+  <select id="model"></select>
+
+  <label class="f" for="roster">Roster (cache)</label>
+  <select id="roster"></select>
+  <div class="note">Supplies player and team names from shirt numbers, so the model
+    never has to read them.</div>
+
+  <label class="f" for="fps">Sample rate (fps)</label>
+  <input type="number" id="fps" value="1" min="0.2" max="5" step="0.2">
+
+  <button id="go" disabled>Process video</button>
+  <button id="stop" class="ghost" style="display:none">Stop</button>
+
+  <div class="bar"><i id="pbar"></i></div>
+  <div class="dim" id="ptext" style="font-size:11.5px">idle</div>
+
+  <div class="stats">
+    <div class="stat"><b id="s_frames">0</b><span>frames</span></div>
+    <div class="stat"><b id="s_det">0</b><span>detections</span></div>
+    <div class="stat"><b id="s_ext">0</b><span>extractions</span></div>
+    <div class="stat"><b id="s_skip">0</b><span>skipped</span></div>
+  </div>
+  <div class="err" id="err"></div>
+  <hr>
+  <div class="note" id="yoloinfo"></div>
+</aside>
+
+<main>
+  <div id="out"></div>
+  <div class="empty" id="empty">
+    <h2>No results yet</h2>
+    <div>Upload a video and press Process.<br>
+      Each detected graphic appears here with its extracted JSON.</div>
+  </div>
+</main>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const out = $('#out'), empty = $('#empty');
+let uploaded = null, es = null, stats = {frames:0, det:0, ext:0, skip:0};
+
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+async function boot(){
+  const c = await (await fetch('/api/config')).json();
+  $('#model').innerHTML = c.models.map(m =>
+    `<option value="${m.key}">${esc(m.label)}</option>`).join('');
+  $('#roster').innerHTML = '<option value="">— none —</option>' +
+    c.rosters.map(r => `<option value="${r}">${esc(r)}</option>`).join('');
+  $('#devline').textContent = `YOLO → crop → VLM → roster cache · device: ${c.device}`;
+  $('#yoloinfo').innerHTML = c.yolo.ok
+    ? `YOLO <b>${esc(c.yolo.weights)}</b> on ${esc(c.yolo.device)}<br>classes: ${c.yolo.classes.join(', ')}`
+    : `<span style="color:var(--bad)">YOLO not loaded: ${esc(c.yolo.error)}</span>`;
+}
+boot();
+
+// ---- upload -------------------------------------------------------------
+const drop = $('#drop'), fileIn = $('#file');
+drop.onclick = () => fileIn.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('on'); };
+drop.ondragleave = () => drop.classList.remove('on');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('on');
+                     if (e.dataTransfer.files[0]) send(e.dataTransfer.files[0]); };
+fileIn.onchange = () => fileIn.files[0] && send(fileIn.files[0]);
+
+async function send(f){
+  drop.innerHTML = `<b>${esc(f.name)}</b><span>uploading…</span>`;
+  const fd = new FormData(); fd.append('file', f);
+  try{
+    const r = await fetch('/api/upload', {method:'POST', body:fd});
+    if(!r.ok) throw new Error((await r.json()).detail || r.statusText);
+    uploaded = await r.json();
+    drop.innerHTML = `<b>${esc(uploaded.name)}</b><span>${uploaded.size_mb} MB · ready</span>`;
+    $('#go').disabled = false;
+  }catch(e){
+    drop.innerHTML = `<b>Upload failed</b><span>${esc(e.message)}</span>`;
+  }
+}
+
+// ---- run ----------------------------------------------------------------
+$('#go').onclick = () => {
+  if(!uploaded) return;
+  out.innerHTML = ''; empty.style.display = 'none'; $('#err').textContent = '';
+  stats = {frames:0, det:0, ext:0, skip:0}; paint();
+  $('#go').disabled = true; $('#stop').style.display = 'block';
+
+  const q = new URLSearchParams({
+    path: uploaded.path, model: $('#model').value, fps: $('#fps').value,
+    merge: 'true'});
+  if($('#roster').value) q.set('roster', $('#roster').value);
+
+  es = new EventSource('/api/process?' + q);
+  es.onmessage = e => handle(JSON.parse(e.data));
+  es.onerror = () => { if(es && es.readyState === 2) finish('connection closed'); };
+};
+$('#stop').onclick = () => finish('stopped');
+
+function finish(why){
+  if(es){ es.close(); es = null; }
+  $('#go').disabled = false; $('#stop').style.display = 'none';
+  if(why) $('#ptext').textContent = why;
+}
+
+function paint(){
+  $('#s_frames').textContent = stats.frames;
+  $('#s_det').textContent = stats.det;
+  $('#s_ext').textContent = stats.ext;
+  $('#s_skip').textContent = stats.skip;
+}
+
+function handle(ev){
+  if(ev.type === 'start'){
+    $('#ptext').textContent = `${ev.video.width}×${ev.video.height} · ${ev.video.duration_s}s · `
+      + `${ev.sampling.to_process} frames to read` + (ev.load_seconds ? ` · model loaded in ${ev.load_seconds}s` : '');
+  }
+  else if(ev.type === 'frame'){
+    stats.frames = ev.i; stats.det += ev.detections.length; paint();
+    $('#pbar').style.width = (100 * ev.i / ev.of) + '%';
+    $('#ptext').textContent = `frame ${ev.i}/${ev.of} · t=${ev.t}s · ${ev.elapsed_s}s elapsed`
+      + (ev.detections.length ? ` · ${ev.detections.join(', ')}` : '');
+  }
+  else if(ev.type === 'result'){
+    if(ev.status === 'ok') stats.ext++;
+    paint(); addResult(ev);
+  }
+  else if(ev.type === 'merged'){ addMerged(ev); }
+  else if(ev.type === 'done'){
+    stats.skip = (ev.counts.skipped || 0); paint();
+    $('#pbar').style.width = '100%';
+    $('#ptext').innerHTML = `<b style="color:var(--ok)">done</b> · ${ev.wall_s}s · `
+      + `${ev.realtime_factor}× realtime · ${ev.counts.extractions||0} extractions`
+      + (ev.counts.invalid_json ? ` · ${ev.counts.invalid_json} invalid` : '');
+    finish(null);
+  }
+  else if(ev.type === 'error'){ $('#err').textContent = ev.message; finish('error'); }
+}
+
+function shell(ev, cls, title){
+  const d = document.createElement('div');
+  d.className = 'card' + cls;
+  d.innerHTML = `<div class="hd">${title}</div>`;
+  out.prepend(d);
+  return d;
+}
+
+function addResult(ev){
+  const bad = ev.status !== 'ok';
+  const head = `<span class="t">t=${ev.t}s</span>`
+    + `<span class="tag ${ev.label}">${ev.label}</span>`
+    + `<span class="dim">conf ${(ev.confidence ?? 0).toFixed(2)}</span>`
+    + `<span class="dim">${Math.round(ev.latency_ms || 0)} ms</span>`
+    + (ev.tokens ? `<span class="dim">${ev.tokens} tok</span>` : '')
+    + (ev.trigger ? `<span class="dim">${ev.trigger}</span>` : '')
+    + (bad ? `<span style="color:var(--bad)">${ev.status}</span>` : '');
+  const d = shell(ev, bad ? ' bad' : '', head);
+
+  const body = document.createElement('div');
+  body.className = 'body';
+  const img = ev.image ? `<img src="${ev.image}" alt="${ev.label}">` : '<span class="dim">no crop</span>';
+  const final = bad
+    ? `<pre>${esc(ev.raw || ev.error || '')}</pre>`
+    : `<pre>${esc(JSON.stringify(strip(ev.data), null, 1))}</pre>`;
+  body.innerHTML = `<div class="imgwrap">${img}</div>
+    <div class="jsonwrap">
+      <div class="jl"><span>${bad ? 'raw model output' : 'final JSON (after cache)'}</span>
+        ${!bad ? '<button class="toggle">show raw model output</button>' : ''}</div>
+      ${final}
+      <div class="raw" style="display:none">
+        <div class="jl" style="margin-top:10px"><span>model output (before cache)</span></div>
+        <pre>${esc(JSON.stringify(ev.model_output, null, 1))}</pre></div>
+    </div>`;
+  d.appendChild(body);
+  const btn = body.querySelector('.toggle');
+  if(btn) btn.onclick = () => {
+    const r = body.querySelector('.raw');
+    const on = r.style.display === 'none';
+    r.style.display = on ? 'block' : 'none';
+    btn.textContent = on ? 'hide raw model output' : 'show raw model output';
+  };
+}
+
+function addMerged(ev){
+  const head = `<span class="t">t=${ev.t_start}–${ev.t_end}s</span>`
+    + `<span class="tag ${ev.label}">${ev.label}</span>`
+    + `<span class="dim">merged from ${ev.reads} read${ev.reads>1?'s':''}</span>`;
+  const d = shell(ev, ' merged', head);
+  const b = document.createElement('div');
+  b.className = 'jsonwrap';
+  b.innerHTML = `<div class="jl"><span>merged event — one per time the graphic was on screen</span></div>
+                 <pre>${esc(JSON.stringify(strip(ev.data), null, 1))}</pre>`;
+  d.appendChild(b);
+}
+
+function strip(o){
+  if(!o || typeof o !== 'object') return o;
+  const c = Array.isArray(o) ? [...o] : {...o};
+  delete c._cache; delete c._resolve;
+  return c;
+}
+</script>
+</body>
+</html>

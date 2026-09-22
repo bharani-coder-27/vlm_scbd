@@ -1,0 +1,42 @@
+{
+  "match": "canada-vs-morocco",
+  "note": "Roster assembled from the broadcast graphics in this dataset for the number->name/team resolution test. In production this comes from a data feed (Opta/StatsPerform/etc). Bench numbers are lower-confidence.",
+  "teams": {
+    "home": {"name": "Canada",  "short": "CAN", "flag_colors": ["red", "white"],        "coach": "Jesse Marsch"},
+    "away": {"name": "Morocco",  "short": "MAR", "flag_colors": ["red", "green"],         "coach": "Mohamed Ouahbi"}
+  },
+  "players": [
+    {"team": "home", "number": 2,  "name": "Alistair Johnston",   "role": "starter"},
+    {"team": "home", "number": 4,  "name": "Luc de Fougerolles",  "role": "starter"},
+    {"team": "home", "number": 7,  "name": "Stephen Eustaquio",   "role": "starter", "captain": true},
+    {"team": "home", "number": 10, "name": "Jonathan David",      "role": "starter"},
+    {"team": "home", "number": 12, "name": "Tani Oluwaseyi",      "role": "starter"},
+    {"team": "home", "number": 15, "name": "Moise Bombito",       "role": "starter"},
+    {"team": "home", "number": 16, "name": "Maxime Crepeau",      "role": "starter", "position": "GK"},
+    {"team": "home", "number": 17, "name": "Tajon Buchanan",      "role": "starter"},
+    {"team": "home", "number": 20, "name": "Ali Ahmed",           "role": "starter"},
+    {"team": "home", "number": 22, "name": "Richie Laryea",       "role": "starter"},
+    {"team": "home", "number": 23, "name": "Niko Sigur",          "role": "starter"},
+    {"team": "home", "number": 14, "name": "Jacob Shaffelburg",   "role": "bench"},
+    {"team": "home", "number": 19, "name": "Alphonso Davies",     "role": "bench"},
+    {"team": "home", "number": 21, "name": "Jonathan Osorio",     "role": "bench"},
+    {"team": "home", "number": 24, "name": "Promise David",       "role": "bench"},
+    {"team": "home", "number": 25, "name": "Nathan Saliba",       "role": "bench"},
+    {"team": "home", "number": 26, "name": "Jayden Nelson",       "role": "bench"},
+
+    {"team": "away", "number": 1,  "name": "Yassine Bounou",      "role": "starter", "position": "GK"},
+    {"team": "away", "number": 2,  "name": "Achraf Hakimi",       "role": "starter"},
+    {"team": "away", "number": 3,  "name": "Noussair Mazraoui",   "role": "starter"},
+    {"team": "away", "number": 6,  "name": "Ayyoub Bouaddi",      "role": "starter"},
+    {"team": "away", "number": 8,  "name": "Azzedine Ounahi",     "role": "starter"},
+    {"team": "away", "number": 10, "name": "Brahim Diaz",         "role": "starter"},
+    {"team": "away", "number": 11, "name": "Ismael Saibari",      "role": "starter"},
+    {"team": "away", "number": 14, "name": "Issa Diop",           "role": "starter"},
+    {"team": "away", "number": 24, "name": "Neil El Aynaoui",     "role": "starter"},
+    {"team": "away", "number": 25, "name": "Redouane Halhal",     "role": "starter"},
+    {"team": "away", "number": 4,  "name": "Sofyan Amrabat",      "role": "bench"},
+    {"team": "away", "number": 7,  "name": "Talbi",               "role": "bench"},
+    {"team": "away", "number": 9,  "name": "Soufiane Rahimi",     "role": "bench"},
+    {"team": "away", "number": 23, "name": "Bilal El Khannous",   "role": "bench"}
+  ]
+}
